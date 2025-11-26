@@ -65,6 +65,9 @@ export interface ImageMetadata {
     tags: string[];
     rating: 'safe' | 'suggestive' | 'explicit';
     theme: 'dark' | 'light' | null;
+    artist: string;
+    source: string;
+    id: number;
 }
 
 export async function getImageMetadata(url: string): Promise<ImageMetadata | string> {
@@ -132,6 +135,8 @@ export async function getImageMetadata(url: string): Promise<ImageMetadata | str
             width,
             height,
             size,
+            artist: null,
+            source: null,
             ...metadata,
         };
     } catch (error: any) {
@@ -149,6 +154,7 @@ export async function scrapeWallpapers(concurrency: number, outputFile: string, 
     const workers = [];
 
     const existingMap = new Map<string, ImageMetadata>();
+    let maxId = 0;
     if (check) {
         try {
             const data = await readFile(outputFile, 'utf-8');
@@ -158,9 +164,13 @@ export async function scrapeWallpapers(concurrency: number, outputFile: string, 
                     if (item.url) {
                         existingMap.set(item.url, item);
                     }
+                    if (item.id && item.id > maxId) {
+                        maxId = item.id;
+                    }
                 });
             }
             console.log(`Loaded ${existingMap.size} existing wallpapers for checking from ${outputFile}.`);
+            console.log(`Max existing ID: ${maxId}`);
         } catch (e) {
             console.warn(`Failed to load existing wallpapers from ${outputFile} (might not exist yet)`, e);
         }
@@ -187,6 +197,9 @@ export async function scrapeWallpapers(concurrency: number, outputFile: string, 
 
                     console.log(`Processing: ${url}`);
                     const result = await getImageMetadata(url);
+                    if (typeof result !== 'string') {
+                        result.id = ++maxId;
+                    }
                     results.push(result);
                 }
             }
