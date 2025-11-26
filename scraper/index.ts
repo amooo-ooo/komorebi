@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import sizeOf from 'image-size';
 import { Buffer } from 'node:buffer';
-import { writeFile } from 'node:fs/promises';
+import { writeFile, readFile } from 'node:fs/promises';
 
 const wallpapers = [
     'https://i.pinimg.com/originals/89/61/94/8961942207903c314fd6b2f3cca72116.jpg',
@@ -22,7 +22,32 @@ const wallpapers = [
     'https://i.pinimg.com/originals/6c/36/14/6c36142ab814fac0477b45fdc53a76e1.jpg',
     'https://i.pinimg.com/originals/6c/d3/19/6cd319754baca4e42e00ecbb7d204967.jpg',
     'https://i.pinimg.com/originals/ef/01/df/ef01dfbf5ca2b1682ac27830895683b5.jpg',
-    'https://i.pinimg.com/originals/c5/4b/06/c54b062244a598d0f65f7391b2d5304b.jpg'
+    'https://i.pinimg.com/originals/c5/4b/06/c54b062244a598d0f65f7391b2d5304b.jpg',
+    'https://i.pinimg.com/originals/e4/45/63/e445634a1037643542ed538fda6507c4.jpg',
+    'https://i.pinimg.com/originals/a1/83/76/a183767608c263a91464835b91b53f3e.jpg',
+    'https://i.pinimg.com/originals/de/81/01/de8101224c641a947edf4a1ba5c4bc6c.jpg',
+    'https://i.pinimg.com/originals/1a/9e/50/1a9e50b11ba3e1ea98bcffa5f601c0f7.jpg',
+    'https://i.pinimg.com/originals/ba/40/db/ba40dbaaac329e0bb33ecb931962049d.jpg',
+    'https://i.pinimg.com/originals/ab/37/6a/ab376a94eb37044ded656c2883f95d06.jpg',
+    'https://i.pinimg.com/originals/14/4c/74/144c740f5d8b3bb952e1c09cd58f387c.jpg',
+    'https://images3.alphacoders.com/135/thumb-1920-1354889.jpeg',
+    'https://i.pinimg.com/originals/df/50/be/df50be83823f019051f568140df63095.jpg',
+    'https://i.pinimg.com/originals/33/34/92/33349277b1aa177314440b96c1ed3199.jpg',
+    'https://i.pinimg.com/originals/45/45/bd/4545bd3497e06b37744fa6259c9a6c9b.jpg',
+    'https://i.pinimg.com/originals/a6/9e/cc/a69eccbad8ea3540d2e28d2502bcd904.jpg',
+    'https://i.pinimg.com/originals/1a/3e/cc/1a3eccaa46b7840aef63d4048041a5d8.jpg',
+    'https://i.pinimg.com/originals/9a/5c/33/9a5c339cd0dfbe8f1069e731fff639cc.jpg',
+    'https://i.pinimg.com/originals/5c/af/06/5caf06cf585e60fefb395eb610c9aa31.jpg',
+    'https://i.pinimg.com/originals/54/66/2a/54662a5efd9419ab93f6fd9618eb47ef.jpg',
+    'https://i.pinimg.com/originals/36/f0/85/36f085bf07558b09f8fe5ba9a8f17932.jpg',
+    'https://i.pinimg.com/originals/6b/fa/80/6bfa801c77d49cd4173305631a5c8736.jpg',
+    'https://i.pinimg.com/originals/35/c6/8d/35c68d0cf4837009da5742ca64b67711.jpg',
+    'https://images4.alphacoders.com/891/thumb-1920-891121.jpg',
+    'https://i.pinimg.com/originals/be/31/85/be3185df83c16bff39f1780a9c5e9a7c.jpg',
+    'https://i.pinimg.com/originals/be/fa/b9/befab907cb59b70cacf38127dda118c1.jpg',
+    'https://cdn.komorebi.orizuru.dev/cdn/1b6da91ba5fc2d42601cef4c4dab50f9.jpg',
+    'https://cdn.komorebi.orizuru.dev/cdn/9ff8e6459f472cbc1d8b5029f173d1ef.png',
+    'https://cdn.komorebi.orizuru.dev/cdn/3ba12d50abe49e7cedeeb97b10f7def3.png'
 ]
 
 const openai = new OpenAI({
@@ -38,6 +63,8 @@ export interface ImageMetadata {
     color_dominant: string;
     color_palette: string[];
     tags: string[];
+    rating: 'safe' | 'suggestive' | 'explicit';
+    theme: 'dark' | 'light' | null;
 }
 
 export async function getImageMetadata(url: string): Promise<ImageMetadata | string> {
@@ -78,10 +105,11 @@ export async function getImageMetadata(url: string): Promise<ImageMetadata | str
                 {
                     role: "system",
                     content: `Given the image, fill in the JSON. Do not include comments: {
-"color_dominant": "", // hex
-"color_palette": [], // [hex, hex, hex] (primary, secondary, accent)
-"tags": [], // [str, str, str, str, str, str, str, str]
-"rating": "", // safe | suggestive | explicit
+"color_dominant": str, // hex
+"color_palette": [str, str, str], // (primary, secondary, accent in hex)
+"tags": [str, str, str, str, str, str, str, str],
+"rating": "safe" | "suggestive" | "explicit", 
+"theme": "light" | "dark" | null // (null means it works in both light and dark mode)
 }`
                 },
                 {
@@ -112,17 +140,51 @@ export async function getImageMetadata(url: string): Promise<ImageMetadata | str
     }
 }
 
-export async function scrapeWallpapers(concurrency: number, outputFile: string) {
-    console.log(`Starting scrape with concurrency: ${concurrency}`);
+export async function scrapeWallpapers(concurrency: number, outputFile: string, check: boolean = true) {
+    console.log(`Scraping ${wallpapers.length} wallpapers`);
+    console.log(`Starting scrape with concurrency: ${concurrency}, check: ${check}`);
+
     const results: (ImageMetadata | string)[] = [];
     const queue = [...wallpapers];
     const workers = [];
+
+    const existingMap = new Map<string, ImageMetadata>();
+    if (check) {
+        try {
+            const data = await readFile(outputFile, 'utf-8');
+            const existingWallpapers = JSON.parse(data);
+            if (Array.isArray(existingWallpapers)) {
+                existingWallpapers.forEach((item: ImageMetadata) => {
+                    if (item.url) {
+                        existingMap.set(item.url, item);
+                    }
+                });
+            }
+            console.log(`Loaded ${existingMap.size} existing wallpapers for checking from ${outputFile}.`);
+        } catch (e) {
+            console.warn(`Failed to load existing wallpapers from ${outputFile} (might not exist yet)`, e);
+        }
+    }
 
     for (let i = 0; i < concurrency; i++) {
         workers.push((async () => {
             while (queue.length > 0) {
                 const url = queue.shift();
                 if (url) {
+                    if (check && existingMap.has(url)) {
+                        const existing = existingMap.get(url);
+                        // TODO: schema validation
+                        const isValid = true;
+
+                        if (isValid) {
+                            console.log(`Skipping ${url} (already exists)`);
+                            results.push(existing);
+                            continue;
+                        } else {
+                            console.log(`Re-scraping ${url} (invalid schema in existing data)`);
+                        }
+                    }
+
                     console.log(`Processing: ${url}`);
                     const result = await getImageMetadata(url);
                     results.push(result);
@@ -139,5 +201,5 @@ export async function scrapeWallpapers(concurrency: number, outputFile: string) 
 }
 
 if (import.meta.main) {
-    scrapeWallpapers(2, 'wallpapers.json');
+    scrapeWallpapers(3, 'wallpapers.json', true);
 }
