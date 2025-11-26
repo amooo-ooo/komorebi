@@ -158,7 +158,7 @@ app.get("/image", async (c) => {
   });
 });
 
-app.get("/try/:id", (c) => {
+app.get("/preview/:id", (c) => {
   const id = c.req.param("id");
   let wallpaper = wallpapers[id - 1];
   if (!wallpaper) wallpaper = wallpapers.find(w => w.id === id);
