@@ -43,7 +43,7 @@ app.get("/", (c) => {
       <section id="wallpaper-grid" class="grid grid-cols-4 gap-4 p-4">
         {initialWallpapers.map((wallpaper, index) => (
           <div key={index} class="rounded-md border border-gray-200 overflow-hidden">
-            <a href={`/try/${wallpaper.id}`} class="relative block">
+            <a href={`/preview/${wallpaper.id}`} class="relative block">
               <img
                 src={wallpaper.url.replace("/originals/", "/736x/")}
                 class="w-full aspect-video object-cover"
@@ -99,7 +99,7 @@ app.get("/", (c) => {
                     const div = document.createElement('div');
                     div.className = "rounded-md border border-gray-200 overflow-hidden";
                     div.innerHTML = \`
-                      <a href="/try/\${w.id}" class="relative block">
+                      <a href="/preview/\${w.id}" class="relative block">
                         <img
                           src="\${w.url.replace("/originals/", "/736x/")}"
                           class="w-full aspect-video object-cover"
