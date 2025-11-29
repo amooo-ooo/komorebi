@@ -56,7 +56,9 @@ const openai = new OpenAI({
 });
 
 export interface ImageMetadata {
+    id: number;
     url: string;
+    thumbnail_url: string;
     width: number;
     height: number;
     size: number;
@@ -65,9 +67,8 @@ export interface ImageMetadata {
     tags: string[];
     rating: 'safe' | 'suggestive' | 'explicit';
     theme: 'dark' | 'light' | null;
-    artist: string;
-    source: string;
-    id: number;
+    artist: string | null;
+    source: string | null;
 }
 
 export async function getImageMetadata(url: string): Promise<ImageMetadata | string> {
@@ -84,9 +85,17 @@ export async function getImageMetadata(url: string): Promise<ImageMetadata | str
         const width = dimensions.width || 0;
         const height = dimensions.height || 0;
 
+        // Determine thumbnail_url based on Pinterest logic
+        let thumbnail_url = url;
+        if (url.includes('i.pinimg.com')) {
+            // Replace /originals/ with /736x/ for Pinterest
+            thumbnail_url = url.replace('/originals/', '/736x/');
+        }
+
         let apiBuffer = buffer;
         try {
-            const lowResUrl = url.replace('/originals/', '/736x/');
+            const lowResUrl = thumbnail_url;
+            
             if (lowResUrl !== url) {
                 // console.log(`Fetching low res image: ${lowResUrl}`);
                 const lowResResponse = await fetch(lowResUrl);
@@ -131,7 +140,9 @@ export async function getImageMetadata(url: string): Promise<ImageMetadata | str
         const metadata = JSON.parse(jsonContent);
 
         return {
+            id: 0, // Placeholder, set by scraper
             url,
+            thumbnail_url,
             width,
             height,
             size,
@@ -182,16 +193,16 @@ export async function scrapeWallpapers(concurrency: number, outputFile: string, 
                 const url = queue.shift();
                 if (url) {
                     if (check && existingMap.has(url)) {
-                        const existing = existingMap.get(url);
-                        // TODO: schema validation
-                        const isValid = true;
+                        const existing = existingMap.get(url)!;
+                        
+                        const isValid = !!existing.thumbnail_url;
 
                         if (isValid) {
                             console.log(`Skipping ${url} (already exists)`);
                             results.push(existing);
                             continue;
                         } else {
-                            console.log(`Re-scraping ${url} (invalid schema in existing data)`);
+                            console.log(`Re-scraping ${url} (missing thumbnail_url)`);
                         }
                     }
 
