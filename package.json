@@ -6,7 +6,9 @@
     "build": "vite build",
     "preview": "$npm_execpath run build && vite preview",
     "deploy": "$npm_execpath run build && wrangler deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "seed": "bun run src/scripts/seed.ts",
+    "scrape": "bun run scraper/index.ts"
   },
   "dependencies": {
     "hono": "^4.10.6"

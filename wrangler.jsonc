@@ -1,6 +1,13 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "k",
+  "name": "komorebi",
   "compatibility_date": "2025-08-03",
-  "main": "./src/index.tsx"
+  "main": "./src/index.tsx",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "komorebi-db",
+      "database_id": "825691f7-05d8-44f7-be33-bf33d1fd6881"
+    }
+  ],
 }

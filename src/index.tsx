@@ -1,43 +1,34 @@
 import { Hono } from "hono";
 import { renderer } from "./renderer";
+import { Bindings } from "./types";
+import {
+  getWallpapers,
+  getWallpaperCount,
+  getWallpaperById,
+  getWallpaperTags,
+  getRandomWallpaper
+} from "./db";
+import { formatFileSize } from "./utils";
 
-import wallpapers from "../wallpapers.json";
-
-const app = new Hono();
-
-const formatFileSize = (bytes: number): string => {
-  if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
-};
-
-function shuffle<T>(array: T[]): T[] {
-  const length = array.length;
-  for (let i = length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-}
+const app = new Hono<{ Bindings: Bindings }>();
 
 app.use(renderer);
 
-app.get("/api/wallpapers", (c) => {
+app.get("/api/wallpapers", async (c) => {
   const page = parseInt(c.req.query("page") || "1");
-  const pageSize = 16;
-  const start = (page - 1) * pageSize;
-  const end = start + pageSize;
-  return c.json(wallpapers.slice(start, end));
+  const wallpapers = await getWallpapers(c.env.DB, page);
+  return c.json(wallpapers);
 });
 
-app.get("/", (c) => {
-  const initialWallpapers = wallpapers.slice(0, 16);
+app.get("/", async (c) => {
+  const initialWallpapers = await getWallpapers(c.env.DB, 1);
+  const totalCount = await getWallpaperCount(c.env.DB);
+
   return c.render(
     <main>
       <h1 class="text-4xl text-center p-8 pb-4 font-[Instrument_Serif]">Komorebi Wallpaper Collection</h1>
       <div class="flex justify-center flex-wrap gap-1.5">
-        <div class="bg-black/75 text-white text-xs px-2 py-1 rounded-full">{wallpapers.length} images</div>
+        <div class="bg-black/75 text-white text-xs px-2 py-1 rounded-full">{totalCount} images</div>
         <div id="latency" class="bg-black/75 text-white text-xs px-2 py-1 rounded-full">...</div>
       </div>
       <section id="wallpaper-grid" class="grid grid-cols-4 gap-4 p-4">
@@ -52,18 +43,6 @@ app.get("/", (c) => {
                 {wallpaper.width} x {wallpaper.height} · {formatFileSize(wallpaper.size)}
               </div>
             </a>
-            {/* <div class="p-2">
-              <div class="flex flex-wrap gap-1.5">
-                {wallpaper.tags.map((tag, tagIndex) => (
-                  <span
-                    key={tagIndex}
-                    class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div> */}
           </div>
         ))}
       </section>
@@ -129,16 +108,14 @@ app.get("/", (c) => {
 
 app.get("/image", async (c) => {
   const id = c.req.query("id");
-  let wallpaper;
+  const tag = c.req.query("tag");
+  const rating = c.req.query("rating");
+  const theme = c.req.query("theme");
 
-  if (id) {
-    // TODO: look up table by id
-    wallpaper = wallpapers[id - 1];
-    if (!wallpaper) wallpaper = wallpapers.find(w => w.id === id);
-    if (!wallpaper) return c.json({ error: "Image not found" }, 404);
-  } else {
-    const index = Math.floor(Math.random() * wallpapers.length);
-    wallpaper = wallpapers[index];
+  const wallpaper = await getRandomWallpaper(c.env.DB, { id, tag, rating, theme });
+
+  if (!wallpaper) {
+    return c.json({ error: "No wallpapers found" }, 404);
   }
 
   const isJson = c.req.header("Accept")?.includes("application/json") ||
@@ -147,7 +124,6 @@ app.get("/image", async (c) => {
 
   const response = await fetch(wallpaper.url);
   if (!response.ok || !response.body) {
-    // return c.redirect(wallpaper.url)
     return c.json({ error: "Failed to fetch image" }, 500);
   }
 
@@ -158,11 +134,17 @@ app.get("/image", async (c) => {
   });
 });
 
-app.get("/preview/:id", (c) => {
+app.get("/preview/:id", async (c) => {
   const id = c.req.param("id");
-  let wallpaper = wallpapers[id - 1];
-  if (!wallpaper) wallpaper = wallpapers.find(w => w.id === id);
-  if (!wallpaper) return c.json({ error: "Image not found" }, 404);
+
+  const wallpaper = await getWallpaperById(c.env.DB, id);
+
+  if (!wallpaper) {
+    return c.json({ error: "Image not found" }, 404);
+  }
+
+  const tags = await getWallpaperTags(c.env.DB, id);
+  wallpaper.tags = tags;
 
   return c.render(
     <main class="m-0 p-0">
@@ -215,7 +197,7 @@ app.get("/preview/:id", (c) => {
         <div class="mb-8">
           <strong class="block mb-2">Tags:</strong>
           <div class="flex flex-wrap gap-2">
-            {wallpaper.tags.map((tag) => (
+            {wallpaper.tags?.map((tag) => (
               <span class="bg-gray-100 px-4 py-2 rounded-full text-sm">
                 {tag}
               </span>
