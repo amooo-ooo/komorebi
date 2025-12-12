@@ -37,7 +37,7 @@ app.get("/", async (c) => {
             <a href={`/preview/${wallpaper.id}`} class="relative block">
               <img
                 src={wallpaper.url.replace("/originals/", "/736x/")}
-                class="w-full aspect-video object-cover"
+                class={`w-full aspect-video object-cover ${wallpaper.rating === 'explicit' ? 'blur-xl' : ''}`}
               />
               <div class="absolute bottom-2 right-2 bg-black/75 text-white text-xs px-2 py-1 rounded-full">
                 {wallpaper.width} x {wallpaper.height} · {formatFileSize(wallpaper.size)}
@@ -81,7 +81,7 @@ app.get("/", async (c) => {
                       <a href="/preview/\${w.id}" class="relative block">
                         <img
                           src="\${w.url.replace("/originals/", "/736x/")}"
-                          class="w-full aspect-video object-cover"
+                          class="w-full aspect-video object-cover \${w.rating === 'explicit' ? 'blur-xl hover:blur-none transition-all duration-500' : ''}"
                           loading="lazy"
                         />
                         <div class="absolute bottom-2 right-2 bg-black/75 text-white text-xs px-2 py-1 rounded-full">

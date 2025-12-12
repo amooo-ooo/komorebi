@@ -9,7 +9,7 @@ async function seed() {
     console.log('Generating seed SQL...');
 
     let sql = '-- Seed data generated from wallpapers.json\n\n';
-    sql += 'BEGIN TRANSACTION;\n\n';
+    // sql += 'BEGIN TRANSACTION;\n\n'; // Removed to avoid remote execution error
 
     // Insert wallpapers
     sql += '-- Wallpapers\n';
@@ -21,13 +21,8 @@ async function seed() {
         const rating = escape(w.rating);
         const theme = escape(w.theme || 'light');
 
-        // Use INSERT OR REPLACE or INSERT OR IGNORE depending on desired behavior.
-        // Since we want to update if changed, REPLACE might be better, but user said "doesnt always attempt to add wallpapers already there"
-        // implying efficiency. If we use INSERT OR IGNORE, it won't update existing.
-        // If we want to update, we should use INSERT OR REPLACE.
-        // However, user said "make it so it's efficient, so it doesnt always attempt to add wallpapers already there".
-        // This usually means "skip if exists".
-        sql += `INSERT OR IGNORE INTO wallpapers (id, url, thumbnail_url, width, height, size, color_dominant, color_palette, rating, theme) VALUES ('${w.id}', '${url}', '${thumb}', ${w.width}, ${w.height}, ${w.size}, '${dominant}', '${palette}', '${rating}', '${theme}');\n`;
+        // Use INSERT OR REPLACE to update existing entries
+        sql += `INSERT OR REPLACE INTO wallpapers (id, url, thumbnail_url, width, height, size, color_dominant, color_palette, rating, theme) VALUES ('${w.id}', '${url}', '${thumb}', ${w.width}, ${w.height}, ${w.size}, '${dominant}', '${palette}', '${rating}', '${theme}');\n`;
     }
 
     // Insert tags
@@ -46,20 +41,23 @@ async function seed() {
     }
 
     // Insert relations
-    // For relations, we might want to clear existing ones for the wallpapers we are processing?
-    // Or just INSERT OR IGNORE.
     sql += '\n-- Wallpaper Tags\n';
+    // We need to clear existing tags for the wallpapers we are updating to avoid stale relations if tags were removed
+    // But since we are doing a bulk seed, maybe we just DELETE FROM wallpaper_tags WHERE wallpaper_id IN (...)?
+    // For simplicity, let's just INSERT OR IGNORE. If we want to support removing tags, we'd need more complex logic.
+    // Given the user just edited JSON, let's assume they might have added/changed tags.
+    // To be safe for updates, we should probably delete existing relations for these wallpapers first.
+
     for (const w of wallpapers) {
+        sql += `DELETE FROM wallpaper_tags WHERE wallpaper_id = '${w.id}';\n`;
         if (w.tags) {
             for (const tag of w.tags) {
-                // We need to get the tag_id. In a real script we might query DB, but here we are generating SQL.
-                // We can use a subquery to get the tag ID.
                 sql += `INSERT OR IGNORE INTO wallpaper_tags (wallpaper_id, tag_id) SELECT '${w.id}', id FROM tags WHERE name = '${escape(tag)}';\n`;
             }
         }
     }
 
-    sql += '\nCOMMIT;\n';
+    // sql += '\nCOMMIT;\n'; // Removed to avoid remote execution error
 
     const tempSeedPath = join(process.cwd(), 'temp_seed.sql');
     writeFileSync(tempSeedPath, sql);
@@ -67,11 +65,9 @@ async function seed() {
 
     try {
         console.log('Executing seed against D1...');
-        // We assume the DB name is 'komorebi-db' as created earlier.
-        // If the user hasn't set up wrangler.jsonc yet, this might fail if run locally without binding.
-        // But assuming the user follows instructions or we update wrangler.jsonc.
-        // We use 'komorebi-db' as the database name.
-        execSync(`npx wrangler d1 execute komorebi-db --file=${tempSeedPath}`, { stdio: 'inherit' });
+        const args = process.argv.slice(2).join(' ');
+        // Add --yes to avoid prompts
+        execSync(`npx wrangler d1 execute komorebi-db --file=${tempSeedPath} --yes ${args}`, { stdio: 'inherit' });
         console.log('Seed completed successfully.');
     } catch (error) {
         console.error('Failed to execute seed command.');

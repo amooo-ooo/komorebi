@@ -95,7 +95,7 @@ export async function getImageMetadata(url: string): Promise<ImageMetadata | str
         let apiBuffer = buffer;
         try {
             const lowResUrl = thumbnail_url;
-            
+
             if (lowResUrl !== url) {
                 // console.log(`Fetching low res image: ${lowResUrl}`);
                 const lowResResponse = await fetch(lowResUrl);
@@ -194,7 +194,7 @@ export async function scrapeWallpapers(concurrency: number, outputFile: string, 
                 if (url) {
                     if (check && existingMap.has(url)) {
                         const existing = existingMap.get(url)!;
-                        
+
                         const isValid = !!existing.thumbnail_url;
 
                         if (isValid) {
