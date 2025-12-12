@@ -30,7 +30,7 @@ Returns a random wallpaper image. You can filter the results using query paramet
 
 **Examples:**
 
-- [https://komorebi.orizuru.dev/image?tag=scenery](https://komorebi.orizuru.dev/image?tag=scenery) - Random scenery wallpaper
+- [https://komorebi.orizuru.dev/image?tag=fantasy](https://komorebi.orizuru.dev/image?tag=scenery) - Random scenery wallpaper
 - [https://komorebi.orizuru.dev/image?rating=safe&theme=dark](https://komorebi.orizuru.dev/image?rating=safe&theme=dark) - Random safe, dark-themed wallpaper
 - [https://komorebi.orizuru.dev/image?format=json](https://komorebi.orizuru.dev/image?format=json) - Get JSON metadata for a random wallpaper
 
