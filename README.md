@@ -23,7 +23,7 @@ Returns a random wallpaper image. You can filter the results using query paramet
 | Parameter | Description | Options |
 | --- | --- | --- |
 | `id` | Get a specific wallpaper by ID | e.g., `1` |
-| `tag` | Filter by tag | e.g., `scenery`, `girl`, `blue` |
+| `tag` | Filter by tag | e.g., `fantasy`, `flowers`, `clouds` |
 | `rating` | Filter by safety rating | `safe`, `suggestive`, `explicit` |
 | `theme` | Filter by color theme | `light`, `dark` |
 | `format` | Response format | `json` (default is image binary) |
