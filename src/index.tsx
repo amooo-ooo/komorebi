@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { renderer } from "./renderer";
 import { Bindings } from "./types";
 import {
@@ -11,6 +12,11 @@ import {
 import { formatFileSize } from "./utils";
 
 const app = new Hono<{ Bindings: Bindings }>();
+
+app.use("/*", cors({
+  origin: "*",
+}));
+
 
 app.use(renderer);
 
